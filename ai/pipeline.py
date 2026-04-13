@@ -1,11 +1,10 @@
-from .tools import tool_config
 from config import config
 from .gemini import *
 from .nvidia import *
 from .groq import *
 from .ollama import *
 import json
-
+from .tools import ALL_TOOLS
 def provider_init(provider_name):
     if provider_name == "gemini":
         return gemini_init()
@@ -91,7 +90,7 @@ If you are not sure, use a search tool instead of answering.
 
 AVAILABLE TOOLS:
 
-{tools}
+{ALL_TOOLS}
 
 ---
 
@@ -167,20 +166,9 @@ IMPORTANT:
 
 Now process the user input."""
 
-    serialized_tools = []
-    for tool in tool_config:
-        if hasattr(tool, "model_dump"):
-            serialized_tools.append(tool.model_dump())
-        elif hasattr(tool, "dict"):
-            serialized_tools.append(tool.dict())
-        elif isinstance(tool, dict):
-            serialized_tools.append(tool)
-        else:
-            serialized_tools.append(str(tool))
-
-    compiled_system_prompt = system_prompt.replace(
-        "{tools}",
-        json.dumps(serialized_tools, ensure_ascii=True, indent=2),
+    system_prompt = system_prompt.replace(
+        "{ALL_TOOLS}",
+        json.dumps(ALL_TOOLS, ensure_ascii=True, indent=2),
     )
 
     for provider in config["ai_fallback_provider_chain"]:
@@ -193,7 +181,7 @@ Now process the user input."""
         model_name = config["provider_models"].get(provider)
         if model_name:
             # Call the provider with the system prompt and user prompt
-            response = call_provider(provider, compiled_system_prompt, prompt, model_name)
+            response = call_provider(provider, system_prompt, prompt, model_name)
             if response:
                 return response
 
