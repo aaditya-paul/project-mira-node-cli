@@ -28,9 +28,12 @@ def _shorten_context(system_prompt, user_prompt, max_chars=10000):
     return short_system, short_user
 
 
-def _build_messages(system_prompt, user_prompt):
+def _build_messages(system_prompt, user_prompt,structured_output=True):
     # Groq requires the word 'json' to appear in messages when using json_object mode.
-    json_guard = "IMPORTANT: Return only a valid json object. Do not include markdown or extra text."
+    if structured_output:
+        json_guard = "IMPORTANT: Return only a valid json object. Do not include markdown or extra text."
+    else:
+        json_guard = ""
     return [
         {"role": "system", "content": f"{system_prompt}\n\n{json_guard}"},
         {"role": "user", "content": user_prompt},
@@ -43,19 +46,28 @@ def groq_init():
     
     return Groq(api_key=api_key)
 
-def provider_groq(system_prompt, user_prompt, model_name):
+def provider_groq(system_prompt, user_prompt, model_name, structured_output=True):
     client = groq_init()
 
     # 🔥 shrink context BEFORE sending
     system_prompt, user_prompt = _shorten_context(system_prompt, user_prompt)
-    messages = _build_messages(system_prompt, user_prompt)
+    if structured_output:
+        messages = _build_messages(system_prompt, user_prompt,structured_output=structured_output)
+    else:
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_prompt},
+        ]
+
+    request_kwargs = {
+        "model": model_name,
+        "messages": messages,
+    }
+    if structured_output:
+        request_kwargs["response_format"] = {"type": "json_object"}
 
     try:
-        res = client.chat.completions.create(
-            model=model_name,
-            messages=messages,
-            response_format={"type": "json_object"},
-        )
+        res = client.chat.completions.create(**request_kwargs   )
     except Exception as e:
         if "Request too large" in str(e):
             print("Context still too large, retrying with aggressive trim...")
@@ -63,17 +75,31 @@ def provider_groq(system_prompt, user_prompt, model_name):
             system_prompt, user_prompt = _shorten_context(
                 system_prompt, user_prompt, max_chars=6000
             )
-            messages = _build_messages(system_prompt, user_prompt)
+            if structured_output:
+                messages = _build_messages(system_prompt, user_prompt, structured_output=structured_output)
+            else:
+                messages = [
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt},
+                ]
 
-            res = client.chat.completions.create(
-                model=model_name,
-                messages=messages,
-                response_format={"type": "json_object"},
-            )
+            request_kwargs = {
+                "model": model_name,
+                "messages": messages,
+            }
+            if structured_output:
+                request_kwargs["response_format"] = {"type": "json_object"}
+
+            res = client.chat.completions.create(**request_kwargs)
         else:
             raise
 
     response_text = (res.choices[0].message.content or "").strip()
+
+    if not structured_output:
+        if response_text:
+            return response_text
+        return None
 
     valid, data_or_error = validate_action_plan(response_text)
     if valid:

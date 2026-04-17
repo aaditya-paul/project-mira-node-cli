@@ -174,7 +174,6 @@ ALL_TOOLS = [
     "get_clipboard",
     "set_clipboard",
 ]
-
 tool_config = [
 
     # ─────────────────────────────────────────────
@@ -954,14 +953,16 @@ tool_config = [
     ),
     Tool(
         name="send_whatsapp_message",
-        description="Send a WhatsApp message to a phone number.",
+        description="Send a WhatsApp message to a recipient identified by phone number or contact name.",
         parameters=Parameters(
             type="object",
             properties={
                 "phone_number": {"type": "string", "description": "The recipient's phone number in international format (e.g. '+919876543210')."},
+                "contact_name": {"type": "string", "description": "Recipient name from contacts (e.g. 'Rajdeep')."},
                 "message": {"type": "string", "description": "The text message to send."},
+                
             },
-            required=["phone_number", "message"],
+            required=["message"],
         ),
     ),
     Tool(

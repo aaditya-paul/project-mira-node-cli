@@ -1,5 +1,5 @@
 config = {
-  "ai_fallback_provider_chain": [ "groq", "ollama"],
+  "ai_fallback_provider_chain": [ "gemini", "groq","nvidia", "ollama"],
   "provider_models": {
     "nvidia": "meta/llama-3.1-70b-instruct",
     "gemini": "gemini-2.5-flash",

@@ -23,19 +23,27 @@ def nvidia_init():
     )
 
 
-def provider_nvidia(system_prompt, user_prompt, model_name):
+def provider_nvidia(system_prompt, user_prompt, model_name, structured_output=True):
     client = nvidia_init()
 
-    res = client.chat.completions.create(
-        model=model_name,
-        messages=[
+    request_kwargs = {
+        "model": model_name,
+        "messages": [
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": user_prompt}
         ],
-        response_format={"type": "json_object"},
-    )
+    }
+    if structured_output:
+        request_kwargs["response_format"] = {"type": "json_object"}
+
+    res = client.chat.completions.create(**request_kwargs)
 
     response_text = (res.choices[0].message.content or "").strip()
+
+    if not structured_output:
+        if response_text:
+            return response_text
+        return None
 
     valid, data_or_error = validate_action_plan(response_text)
     if valid:

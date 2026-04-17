@@ -50,15 +50,40 @@ def validate_action_plan(response_text: str) -> Tuple[bool, Any]:
     # 2. Check if the parsed JSON is a dictionary
     if not isinstance(data, dict):
         return False, "Parsed JSON is not a dictionary object."
+
+    # 3. Normalize alternate model output shapes into canonical schema.
+    # Example legacy shape: {"action": "send_whatsapp_message", "args": {...}}
+    if "type" not in data:
+        if isinstance(data.get("action"), str):
+            data = {
+                "type": "tool",
+                "tool": data.get("action"),
+                "args": data.get("args") if isinstance(data.get("args"), dict) else {},
+                "response": None,
+            }
+        elif isinstance(data.get("tool"), str):
+            data = {
+                "type": "tool",
+                "tool": data.get("tool"),
+                "args": data.get("args") if isinstance(data.get("args"), dict) else {},
+                "response": None,
+            }
+        elif isinstance(data.get("response"), str):
+            data = {
+                "type": "text",
+                "tool": None,
+                "args": None,
+                "response": data.get("response"),
+            }
         
-    # 3. Check for required fields
+    # 4. Check for required fields
     required_fields = {"type", "tool", "args", "response"}
     missing_fields = required_fields - data.keys()
     
     if missing_fields:
         return False, f"Missing required fields: {', '.join(missing_fields)}"
         
-    # 4. Validate and normalize by action type
+    # 5. Validate and normalize by action type
     action_type = data.get("type")
     if action_type not in {"tool", "text"}:
         return False, "'type' must be either 'tool' or 'text'."

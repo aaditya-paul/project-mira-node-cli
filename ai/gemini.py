@@ -19,18 +19,27 @@ def gemini_init():
         raise ValueError("GEMINI_API_KEY not found in environment")
     return genai.Client(api_key=api_key)
 
-def provider_gemini(system_prompt, user_prompt, model_name):
+def provider_gemini(system_prompt, user_prompt, model_name, structured_output=True):
     client = gemini_init()
+    config_kwargs = {
+        "system_instruction": system_prompt,
+    }
+    if structured_output:
+        config_kwargs["response_mime_type"] = "application/json"
+
     res = client.models.generate_content(
         model=model_name,
         contents=user_prompt,
-        config=types.GenerateContentConfig(
-            system_instruction=system_prompt,
-            response_mime_type="application/json",
-        ),
+        config=types.GenerateContentConfig(**config_kwargs),
     )
 
     response_text = (res.text or "").strip()
+
+    if not structured_output:
+        if response_text:           
+            return response_text
+        return None
+
     valid, data_or_error = validate_action_plan(response_text)
     if valid:
         _print_debug_json("Validated JSON response", data_or_error)
